@@ -27,9 +27,17 @@ jobs:
         with:
           key: php-${{ matrix.php }}
 
-      # ext-php-rs generates its PHP bindings with bindgen, which needs libclang.
-      - name: Install libclang
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      # ext-php-rs generates its PHP bindings with bindgen. The libclang it
+      # loads and the clang whose headers it uses must be the same version;
+      # runner images ship several, so pin both to the newest one installed.
+      - name: Set up libclang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev
+          v=$(ls /usr/lib | sed -n 's/^llvm-\([0-9]\+\)$/\1/p' | sort -n | tail -1)
+          sudo apt-get install -y "clang-$v" "libclang-$v-dev"
+          echo "LIBCLANG_PATH=/usr/lib/llvm-$v/lib" >> "$GITHUB_ENV"
+          echo "CLANG_PATH=/usr/bin/clang-$v" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
