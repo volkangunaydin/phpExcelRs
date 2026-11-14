@@ -92,6 +92,19 @@ Measured with 300,000 rows × 7 columns (PHP 8.4, release build):
 The remaining memory is mostly the workbook's shared string table, which grows
 with the number of distinct strings.
 
+## Installing
+
+Prebuilt binaries for Linux and Windows (x86_64), PHP 8.3 – 8.5, are attached
+to each [release](https://github.com/volkangunaydin/phpExcelRs/releases).
+Pick the file that matches your PHP version and thread safety
+(`php -i | grep "Thread Safety"`: disabled = `nts`, enabled = `ts`).
+
+1. Copy the file into PHP's extension directory (`php-config --extension-dir`,
+   or the `ext` folder on Windows), renaming it to `excel_rs.so` /
+   `excel_rs.dll`.
+2. Add `extension=excel_rs` to `php.ini`.
+3. Check with `php -m | grep excel_rs`.
+
 ## Building
 
 Requires Rust, the PHP development headers (`php-dev`) and `clang`.
@@ -107,9 +120,6 @@ To build for another installed version, point the build at its tools:
 ```sh
 PHP=/usr/bin/php8.3 PHP_CONFIG=/usr/bin/php-config8.3 cargo build --release
 ```
-
-To install, copy the `.so` into `php-config --extension-dir` and add
-`extension=excel_rs` to `php.ini`.
 
 ## License
 

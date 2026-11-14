@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -57,7 +58,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: excel_rs-php${{ matrix.php }}-linux-x86_64
+          name: excel_rs-php${{ matrix.php }}-nts-linux-x86_64
           path: target/release/libexcel_rs.so
 
   windows:
@@ -109,3 +110,49 @@ jobs:
         with:
           name: excel_rs-php${{ matrix.php }}-${{ matrix.ts }}-windows-x86_64
           path: target/release/excel_rs.dll
+
+  # Collect every build under a descriptive file name. On a version tag the
+  # files are also published as a GitHub release.
+  package:
+    name: Package
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Rename binaries
+        run: |
+          mkdir dist
+          for dir in artifacts/*/; do
+            name=$(basename "$dir")
+            for file in "$dir"*; do
+              cp "$file" "dist/$name.${file##*.}"
+            done
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: excel_rs-all
+          path: dist
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match Cargo.toml version $version"
+            exit 1
+          fi
+          gh release create "$TAG" dist/* --title "$TAG" --generate-notes \
+            --notes "Pick the file that matches your PHP version, thread safety (\`php -i | grep 'Thread Safety'\`) and platform. See the README for installation."
