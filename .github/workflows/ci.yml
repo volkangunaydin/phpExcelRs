@@ -32,7 +32,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libclang-dev
 
       - name: Build
-        run: cargo build --release
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | tee build.log
+
+      # Surface the end of the build output as an annotation on failure.
+      - name: Report build failure
+        if: failure()
+        run: |
+          php -v | head -1; php-config --version; clang --version | head -1; rustc --version
+          msg=$(grep -vE '^\s*(Compiling|Downloaded|Downloading)' build.log | tail -60)
+          msg="${msg//'%'/'%25'}"; msg="${msg//$'\n'/'%0A'}"; msg="${msg//$'\r'/'%0D'}"
+          echo "::error title=Build output::$msg"
 
       - name: Test
         run: php -d extension=$PWD/target/release/libexcel_rs.so tests/roundtrip.php
