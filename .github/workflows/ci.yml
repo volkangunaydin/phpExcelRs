@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: PHP ${{ matrix.php }}
+  linux:
+    name: Linux / PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,7 +48,6 @@ jobs:
       - name: Report build failure
         if: failure()
         run: |
-          php -v | head -1; php-config --version; clang --version | head -1; rustc --version
           msg=$(grep -vE '^\s*(Compiling|Downloaded|Downloading)' build.log | tail -60)
           msg="${msg//'%'/'%25'}"; msg="${msg//$'\n'/'%0A'}"; msg="${msg//$'\r'/'%0D'}"
           echo "::error title=Build output::$msg"
@@ -60,3 +59,53 @@ jobs:
         with:
           name: excel_rs-php${{ matrix.php }}-linux-x86_64
           path: target/release/libexcel_rs.so
+
+  windows:
+    name: Windows / PHP ${{ matrix.php }} ${{ matrix.ts }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+        ts: [nts, ts]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+        env:
+          phpts: ${{ matrix.ts }}
+
+      # ext-php-rs needs nightly Rust on Windows (vectorcall ABI).
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: php-${{ matrix.php }}-${{ matrix.ts }}
+
+      - name: Build
+        env:
+          LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | tee build.log
+
+      - name: Report build failure
+        if: failure()
+        run: |
+          msg=$(grep -vE '^\s*(Compiling|Downloaded|Downloading)' build.log | tail -60)
+          msg="${msg//'%'/'%25'}"; msg="${msg//$'\n'/'%0A'}"; msg="${msg//$'\r'/'%0D'}"
+          echo "::error title=Build output::$msg"
+
+      - name: Test
+        run: php -d extension="$(cygpath -w "$PWD/target/release/excel_rs.dll")" tests/roundtrip.php
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: excel_rs-php${{ matrix.php }}-${{ matrix.ts }}-windows-x86_64
+          path: target/release/excel_rs.dll
