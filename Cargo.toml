@@ -1,0 +1,24 @@
+[package]
+name = "excel_rs"
+version = "0.1.0"
+edition = "2024"
+description = "Fast Excel (xlsx/xls/xlsb/ods) reader and xlsx writer for PHP, written in Rust"
+license = "MIT"
+repository = "https://github.com/volkangunaydin/excel_rs"
+keywords = ["php", "excel", "xlsx", "extension"]
+categories = ["api-bindings"]
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+calamine = { version = "0.38.0", features = ["dates"] }
+chrono = { version = "0.4.45", default-features = false, features = ["alloc"] }
+ext-php-rs = "0.16.4"
+rust_xlsxwriter = { version = "0.102.0", features = ["constant_memory"] }
+
+[profile.release]
+strip = "debuginfo"
+lto = true
+codegen-units = 1
